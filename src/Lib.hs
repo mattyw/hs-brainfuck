@@ -11,28 +11,31 @@ import Data.Char
 next c = chr (ord c + 1)
 prev c = chr (ord c -1 )
 
-data Program = Program String Int String Int String
+data Program = Program String Int String Int String String
 
 -- TODO we can remove out
 instance Show Program where
-    show (Program _ _ tape _ out) = "output: " ++ tape ++ " " ++ out
+    show (Program code _ tape _ _ out) = "output: " ++ code ++ tape ++ " " ++ out
 
 
 run :: String -> String
-run code = run' (Program code 0 "" 0 "")
+run code = run' (Program code 0 "" 0 "input" "")
 
 run' :: Program -> String
 run' prog = show $ eval prog
 
 eval :: Program -> Program
-eval (Program ('>':code) cPos tape tPos out) = Program code cPos tape (tPos+1) out
-eval (Program ('<':code) cPos tape tPos out) = Program code cPos tape (tPos-1) out
-eval (Program ('+':code) cPos tape tPos out) = Program code cPos (alterTape tape tPos next) tPos out
-eval (Program ('-':code) cPos tape tPos out) = Program code cPos (alterTape tape tPos prev) tPos out
-eval (Program ('.':code) cPos tape tPos out) = Program code cPos tape tPos (out ++ [tape !! tPos])
-eval (Program (',':code) cPos tape tPos out) = Program code cPos (alterTape tape tPos (put $ tape !! tPos)) tPos out
+eval (Program [] cPos tape tPos inp out) = Program [] cPos tape (tPos+1) inp out
+eval (Program ('>':code) cPos tape tPos inp out) = eval $ Program code cPos tape (tPos+1) inp out
+eval (Program ('<':code) cPos tape tPos inp out) = eval $ Program code cPos tape (tPos-1) inp out
+eval (Program ('+':code) cPos tape tPos inp out) = eval $ Program code cPos (alterTape tape tPos next) tPos inp out
+eval (Program ('-':code) cPos tape tPos inp out) = eval $ Program code cPos (alterTape tape tPos prev) tPos inp out
+eval (Program ('.':code) cPos tape tPos inp out) = eval $ Program code cPos tape tPos inp (out ++ [tape !! tPos])
+eval (Program (',':code) cPos tape tPos (i:inp) out) = eval $ Program code cPos (alterTape tape tPos (put i)) tPos inp out
 -- Ignore all else
-eval (Program (_:code) cPos tape tPos out) = Program code cPos tape tPos out
+eval (Program (_:code) cPos tape tPos inp out) = eval $ Program code cPos tape tPos inp out
+-- Need to implement jumps
+
 
 
 put :: Char -> Char -> Char
