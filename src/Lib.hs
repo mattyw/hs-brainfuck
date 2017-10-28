@@ -7,6 +7,8 @@ module Lib
     ) where
 
 import Data.Char
+import Data.List
+import Data.Maybe
 
 next c = chr (ord c + 1)
 prev c = chr (ord c -1 )
@@ -32,11 +34,35 @@ eval (Program ('+':code) cPos tape tPos inp out) = eval $ Program code cPos (alt
 eval (Program ('-':code) cPos tape tPos inp out) = eval $ Program code cPos (alterTape tape tPos prev) tPos inp out
 eval (Program ('.':code) cPos tape tPos inp out) = eval $ Program code cPos tape tPos inp (out ++ [tape !! tPos])
 eval (Program (',':code) cPos tape tPos (i:inp) out) = eval $ Program code cPos (alterTape tape tPos (put i)) tPos inp out
+-- Jumps
+eval (Program ('[':code) cPos tape tPos inp out) = eval $ jumpForward $ Program code cPos tape tPos inp out
+eval (Program (']':code) cPos tape tPos inp out) = eval $ jumpBackward $ Program code cPos tape tPos inp out
 -- Ignore all else
 eval (Program (_:code) cPos tape tPos inp out) = eval $ Program code cPos tape tPos inp out
--- Need to implement jumps
 
 
+valueOnTape :: String -> Int -> Char
+valueOnTape tape pos
+    | length(tape) < pos = '\0'
+    | otherwise = tape !! pos
+
+jumpForwardPos :: String -> Int -> Maybe Int
+jumpForwardPos tape pos = 
+    if (valueOnTape tape pos) == '\0' 
+        then elemIndex ']' tape
+        else Just pos
+
+jumpBackwardPos :: String -> Int -> Maybe Int
+jumpBackwardPos tape pos = 
+    if (valueOnTape tape pos) != '\0' 
+        then elemIndex ']' tape -- need to implement jump back
+        else Just pos
+
+jumpForward :: Program -> Program
+jumpForward (Program code cPos tape tPos inp out) = Program code cPos tape (fromJust (jumpForwardPos tape tPos)) inp out
+
+jumpBackward :: Program -> Program
+jumpForward (Program code cPos tape tPos inp out) = Program code cPos tape (fromJust (jumpBackwardPos tape tPos)) inp out
 
 put :: Char -> Char -> Char
 put x _ = x
