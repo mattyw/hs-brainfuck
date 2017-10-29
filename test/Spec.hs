@@ -6,7 +6,10 @@ import Control.Monad
 
 testMatch = TestCase (do
     let out = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
-    assertEqual "Test match" (Lib.parens out) [(8,48),(43, 45),(14, 33)]
+    let parens = [(8,48),(43, 45),(14, 33)]
+    assertEqual "Test match" parens (Lib.parens out)
+    assertEqual "Find other" 48 (Lib.otherParen parens 8)
+    assertEqual "Find other" 43 (Lib.otherParen parens 45)
     )
 tests = TestList [
     testMatch

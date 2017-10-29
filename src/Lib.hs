@@ -6,6 +6,7 @@ module Lib
     , put
     , parens
     , helloWorld
+    , otherParen
     ) where
 
 import Data.Char
@@ -36,15 +37,30 @@ eval (Program ('-':code) cPos tape tPos inp out) = eval $ Program code cPos (alt
 eval (Program ('.':code) cPos tape tPos inp out) = eval $ Program code cPos tape tPos inp (out ++ [tape !! tPos])
 eval (Program (',':code) cPos tape tPos (i:inp) out) = eval $ Program code cPos (alterTape tape tPos (put i)) tPos inp out
 -- Jumps
---eval (Program ('[':code) cPos tape tPos inp out) = eval $ jumpForward $ Program code cPos tape tPos inp out
---eval (Program (']':code) cPos tape tPos inp out) = eval $ jumpBackward $ Program code cPos tape tPos inp out
+eval (Program ('[':code) cPos tape tPos inp out) = eval $ Program code cPos tape (jumpForwardPos tape tPos) inp out
+eval (Program (']':code) cPos tape tPos inp out) = eval $ Program code cPos tape (jumpBackwardPos tape tPos) inp out
 -- Ignore all else
 eval (Program (_:code) cPos tape tPos inp out) = eval $ Program code cPos tape tPos inp out
 
+jumpForwardPos :: String -> Int -> Int
+jumpForwardPos tape pos =
+    if (valueOnTape tape pos) == '\0'
+           then  (index+1)
+           else pos
+    where
+        index = otherParen (parens tape) pos
+
+jumpBackwardPos :: String -> Int -> Int
+jumpBackwardPos tape pos =
+    if (valueOnTape tape pos) /= '\0'
+           then  (index+1)
+           else pos
+    where
+        index = otherParen (parens tape) pos
 
 valueOnTape :: String -> Int -> Char
 valueOnTape tape pos
-    | length(tape) < pos = '\0'
+    | length(tape) <= pos = '\0'
     | otherwise = tape !! pos
 
 put :: Char -> Char -> Char
@@ -65,5 +81,12 @@ findParen (x:xs) idx stck acc = findParen xs (idx+1) stck acc
 
 parens :: String -> [(Int,Int)]
 parens s = findParen s 0 [] []
+
+otherParen :: [(Int, Int)] -> Int -> Int
+otherParen [] _ = error "no parens"
+otherParen ((a,b):xs) n
+    | a == n = b
+    | b == n = a
+    | otherwise = otherParen xs n
 
 helloWorld = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
