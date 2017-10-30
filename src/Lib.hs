@@ -44,31 +44,31 @@ tape :: Program -> String
 tape (Program _ _ _ t _ _ _) = t
 
 run :: String -> String
-run code = run' (Program code code 0 (take 30000 $ repeat '\0') 0 "abcdefghijklmnopqrstuvwxyz" "")
+run code = run' (Program code code 0 (take 30000 $ repeat '\0') 0 "abcdefghijklmnopqrstuvwxyz" "") (parens code)
 
-run' :: Program -> String
-run' prog = show $ eval prog
+run' :: Program -> [(Int,Int)] -> String
+run' prog parens = show $ eval prog (parens)
 
 -- TODO remove cPos
-eval :: Program -> Program
-eval (Program [] allCode cPos tape tPos inp out) = Program [] allCode (cPos+1) tape tPos inp out
-eval (Program ('>':code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) tape (tPos+1) inp out
-eval (Program ('<':code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) tape (tPos-1) inp out
-eval (Program ('+':code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) (alterTape tape tPos next) tPos inp out
-eval (Program ('-':code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) (alterTape tape tPos prev) tPos inp out
-eval (Program ('.':code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) tape tPos inp (out ++ [tape !! tPos])
-eval (Program (',':code) allCode cPos tape tPos (i:inp) out) = eval $ Program code allCode (cPos+1) (alterTape tape tPos (put i)) tPos inp out
+eval :: Program -> [(Int,Int)] -> Program
+eval (Program [] allCode cPos tape tPos inp out) _ = Program [] allCode (cPos+1) tape tPos inp out
+eval (Program ('>':code) allCode cPos tape tPos inp out) parens = eval (Program code allCode (cPos+1) tape (tPos+1) inp out) parens
+eval (Program ('<':code) allCode cPos tape tPos inp out) parens = eval (Program code allCode (cPos+1) tape (tPos-1) inp out) parens
+eval (Program ('+':code) allCode cPos tape tPos inp out) parens = eval (Program code allCode (cPos+1) (alterTape tape tPos next) tPos inp out) parens
+eval (Program ('-':code) allCode cPos tape tPos inp out) parens = eval (Program code allCode (cPos+1) (alterTape tape tPos prev) tPos inp out) parens
+eval (Program ('.':code) allCode cPos tape tPos inp out) parens = eval (Program code allCode (cPos+1) tape tPos inp (out ++ [tape !! tPos])) parens
+eval (Program (',':code) allCode cPos tape tPos (i:inp) out) parens = eval (Program code allCode (cPos+1) (alterTape tape tPos (put i)) tPos inp out) parens
 -- Jumps
-eval (Program ('[':code) allCode cPos tape tPos inp out) = eval $ Program newCode allCode newPos tape tPos inp out
+eval (Program ('[':code) allCode cPos tape tPos inp out) parens = eval (Program newCode allCode newPos tape tPos inp out) parens
     where
-        newPos = jumpForwardPos (parens allCode) (valueOnTape tape tPos) cPos
+        newPos = jumpForwardPos parens (valueOnTape tape tPos) cPos
         newCode = drop newPos allCode
-eval (Program (']':code) allCode cPos tape tPos inp out) = eval $ Program newCode allCode newPos tape tPos inp out
+eval (Program (']':code) allCode cPos tape tPos inp out) parens = eval (Program newCode allCode newPos tape tPos inp out) parens
     where
-        newPos = jumpBackwardPos (parens allCode) (valueOnTape tape tPos) cPos
+        newPos = jumpBackwardPos parens (valueOnTape tape tPos) cPos
         newCode = drop newPos allCode
 -- Ignore all else
-eval (Program (_:code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) tape tPos inp out
+eval (Program (_:code) allCode cPos tape tPos inp out) parens = eval (Program code allCode (cPos+1) tape tPos inp out) parens
 
 jumpForwardPos :: [(Int,Int)] -> Char -> Int -> Int
 jumpForwardPos parens tape pos =
