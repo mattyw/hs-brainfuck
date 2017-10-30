@@ -44,7 +44,7 @@ tape :: Program -> String
 tape (Program _ _ _ t _ _ _) = t
 
 run :: String -> String
-run code = run' (Program code code 0 (take 1000 $ repeat '\0') 0 "input" "")
+run code = run' (Program code code 0 (take 30000 $ repeat '\0') 0 "abcdefghijklmnopqrstuvwxyz" "")
 
 run' :: Program -> String
 run' prog = show $ eval prog
@@ -61,35 +61,33 @@ eval (Program (',':code) allCode cPos tape tPos (i:inp) out) = eval $ Program co
 -- Jumps
 eval (Program ('[':code) allCode cPos tape tPos inp out) = eval $ Program newCode allCode newPos tape tPos inp out
     where
-        newPos = jumpForwardPos (parens allCode) tape cPos
+        newPos = jumpForwardPos (parens allCode) (valueOnTape tape tPos) cPos
         newCode = drop newPos allCode
 eval (Program (']':code) allCode cPos tape tPos inp out) = eval $ Program newCode allCode newPos tape tPos inp out
     where
-        newPos = jumpBackwardPos (parens allCode) tape cPos
+        newPos = jumpBackwardPos (parens allCode) (valueOnTape tape tPos) cPos
         newCode = drop newPos allCode
 -- Ignore all else
 eval (Program (_:code) allCode cPos tape tPos inp out) = eval $ Program code allCode (cPos+1) tape tPos inp out
 
-jumpForwardPos :: [(Int,Int)] -> String -> Int -> Int
+jumpForwardPos :: [(Int,Int)] -> Char -> Int -> Int
 jumpForwardPos parens tape pos =
-    if (valueOnTape tape pos) == '\0'
+    if tape == '\0'
            then (index+1)
            else (pos+1)
     where
         index = otherParen parens pos
 
-jumpBackwardPos :: [(Int,Int)] -> String -> Int -> Int
+jumpBackwardPos :: [(Int,Int)] -> Char -> Int -> Int
 jumpBackwardPos parens tape pos =
-    if (valueOnTape tape pos) /= '\0'
+    if tape /= '\0'
            then (index+1)
            else (pos+1)
     where
         index = otherParen parens pos
 
 valueOnTape :: String -> Int -> Char
-valueOnTape tape pos
-    | length(tape) <= pos = '\0'
-    | otherwise = tape !! pos
+valueOnTape tape pos = tape !! pos
 
 put :: Char -> Char -> Char
 put x _ = x
