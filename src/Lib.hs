@@ -20,10 +20,10 @@ data Program = Program String String Int String Int String String
 
 -- TODO we can remove out
 instance Show Program where
-    show (Program _ _ _ tape _ _ out) = "output: " ++ tape ++ " " ++ out
+    show (Program _ _ _ _ _ _ out) = out
 
 run :: String -> String
-run code = run' (Program code code 0 "" 0 "input" "")
+run code = run' (Program code code 0 (take 1000 $ repeat '\0') 0 "input" "")
 
 run' :: Program -> String
 run' prog = show $ eval prog

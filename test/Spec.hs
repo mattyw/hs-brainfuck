@@ -11,8 +11,15 @@ testMatch = TestCase (do
     assertEqual "Find other" 48 (Lib.otherParen parens 8)
     assertEqual "Find other" 43 (Lib.otherParen parens 45)
     )
+testRun = TestCase (do
+    let bang = "+++++++++++++++++++++++++++++++++.+."
+    let program = "++++++++++++++++++++++++++++++++++++++++++++++++++++.>++++++++++++++++++++++++++++++++++++++++++++++++++++-<+++++++++++++++++++++++++++++++++++++++++++++++++++-.>>,."
+    assertEqual "Test bang" "!\"" (run bang)
+    assertEqual "Test 4fi" "4fi" (run program)
+    )
 tests = TestList [
     testMatch
+    , testRun
     ]
 main :: IO ()
 main = do
