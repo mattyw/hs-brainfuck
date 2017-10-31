@@ -17,7 +17,7 @@ testRun = TestCase (do
     let helloWorld = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
     let onejump = "[+++++++++++++++++++++++++++++++++.]+++++++++++++++++++++++++++++++++."
     assertEqual "Test bang" "!\"" (run bang)
-    assertEqual "Test 4fi" "4fi" (run program)
+    assertEqual "Test 4fi" "4fa" (run program)
     assertEqual "Test " "!" (run onejump)
     assertEqual "Test " "Hello World!\n" (run helloWorld)
     )
@@ -29,9 +29,13 @@ testJumpPos = TestCase (do
     assertEqual "jump pos" 1 (jumpBackwardPos (Lib.parens jump) '1' 2)
     )
 testEval = TestCase (do
+    let one = "+."
+    let prog = (Program one 0 (take 10 $ repeat '\0') 0 "" "")
+    let expected = (Program one 0 "\SOH\0\0\0\0\0\0\0\0\0" 0 "" "")
+    assertEqual "one result" (tape expected) (tape (eval prog (parens one)))
     let jump = "[+]++"
-    let prog = (Program jump jump 0 (take 10 $ repeat '\0') 0 "" "")
-    let expected = (Program jump jump 0 "\STX\0\0\0\0\0\0\0\0\0" 0 "" "")
+    let prog = (Program jump 0 (take 10 $ repeat '\0') 0 "" "")
+    let expected = (Program jump 0 "\STX\0\0\0\0\0\0\0\0\0" 0 "" "")
     assertEqual "jump result" (tape expected) (tape (eval prog (parens jump)))
     )
 tests = TestList [
