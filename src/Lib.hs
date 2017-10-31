@@ -42,16 +42,21 @@ instance Eq Program where
 tape :: Program -> String
 tape (Program _ _ t _ _ _) = t
 
+code :: Program -> String
+code (Program c _ _ _ _ _) = c
+
 run :: String -> String
-run code = run' (Program code 0 (take 30000 $ repeat '\0') 0 "abcdefghijklmnopqrstuvwxyz" "") (parens code)
+run commentedCode = run' (Program code 0 (take 30000 $ repeat '\0') 0 "abcdefghijklmnopqrstuvwxyz" "") (parens code)
+    where
+        code = filter (`elem` "><+-,.[]") commentedCode
 
 run' :: Program -> [(Int,Int)] -> String
-run' prog parens = show $ eval prog (parens)
+run' prog parens = show $ eval prog (length $ code prog) (parens)
 
-eval :: Program -> [(Int,Int)] -> Program
-eval (Program code cPos tape tPos inp out) parens = case (cPos >= length(code)) of
+eval :: Program -> Int -> [(Int,Int)] -> Program
+eval (Program code cPos tape tPos inp out) progLen parens = case (cPos >= progLen) of
     True -> Program code cPos tape tPos inp out
-    otherwise -> eval (op (code !! cPos) (Program code cPos tape tPos inp out) parens) parens
+    otherwise -> eval (op (code !! cPos) (Program code cPos tape tPos inp out) parens) progLen parens
 
 -- TODO remove cPos
 op :: Char -> Program -> [(Int,Int)] -> Program

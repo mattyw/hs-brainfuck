@@ -32,11 +32,11 @@ testEval = TestCase (do
     let one = "+."
     let prog = (Program one 0 (take 10 $ repeat '\0') 0 "" "")
     let expected = (Program one 0 "\SOH\0\0\0\0\0\0\0\0\0" 0 "" "")
-    assertEqual "one result" (tape expected) (tape (eval prog (parens one)))
+    assertEqual "one result" (tape expected) (tape (eval prog (length one) (parens one)))
     let jump = "[+]++"
     let prog = (Program jump 0 (take 10 $ repeat '\0') 0 "" "")
     let expected = (Program jump 0 "\STX\0\0\0\0\0\0\0\0\0" 0 "" "")
-    assertEqual "jump result" (tape expected) (tape (eval prog (parens jump)))
+    assertEqual "jump result" (tape expected) (tape (eval prog (length jump) (parens jump)))
     )
 tests = TestList [
     testMatch
