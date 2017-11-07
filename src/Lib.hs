@@ -16,6 +16,7 @@ module Lib
 import Data.Char
 import Data.List
 import Data.Maybe
+import qualified Data.Sequence as S
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -25,7 +26,9 @@ prev :: Char -> Char
 prev '\0' = chr 255
 prev c = chr (ord c -1 )
 
-data Program = Program String Int String Int String String
+type Tape = S.Seq Char
+
+data Program = Program String Int Tape Int String String
 
 -- TODO we can remove out
 instance Show Program where
@@ -40,13 +43,13 @@ instance Eq Program where
                                           a5 == b5 &&
                                           a6 == b6
 tape :: Program -> String
-tape (Program _ _ t _ _ _) = t
+tape (Program _ _ t _ _ _) = show t
 
 code :: Program -> String
 code (Program c _ _ _ _ _) = c
 
 run :: String -> String
-run commentedCode = run' (Program code 0 (take 30000 $ repeat '\0') 0 "abcdefghijklmnopqrstuvwxyz" "") (parens code)
+run commentedCode = run' (Program code 0 (S.replicate 30000 '\0') 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
@@ -64,7 +67,7 @@ op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tap
 op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape (tPos-1) inp out)
 op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos next) tPos inp out)
 op '-' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos prev) tPos inp out)
-op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [tape !! tPos])) 
+op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [valueOnTape tape tPos])) 
 op ',' (Program code cPos tape tPos (i:inp) out) parens = (Program code (cPos+1) (alterTape tape tPos (put i)) tPos inp out)
 -- Jumps
 op '[' (Program code cPos tape tPos inp out) parens = (Program code newPos tape tPos inp out)
@@ -79,29 +82,26 @@ op _ (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape 
 jumpForwardPos :: [(Int,Int)] -> Char -> Int -> Int
 jumpForwardPos parens tape pos =
     if tape == '\0'
-           then (index+1)
+           then (otherParen parens pos)+1
            else (pos+1)
-    where
-        index = otherParen parens pos
 
 jumpBackwardPos :: [(Int,Int)] -> Char -> Int -> Int
 jumpBackwardPos parens tape pos =
     if tape /= '\0'
-           then (index+1)
+           then (otherParen parens pos)+1
            else (pos+1)
-    where
-        index = otherParen parens pos
 
-valueOnTape :: String -> Int -> Char
-valueOnTape tape pos = tape !! pos
+--valueOnTape :: Tape -> Int -> Char
+valueOnTape = S.index
 
 put :: Char -> Char -> Char
 put x _ = x
 
-alterTape :: String -> Int -> (Char -> Char) -> String
-alterTape "" _ _ = ""
-alterTape (x:xs) 0 f = f x : xs
-alterTape (x:xs) i f = x : alterTape xs (i-1) f
+--alterTape :: String -> Int -> (Char -> Char) -> String
+--alterTape "" _ _ = ""
+--alterTape (x:xs) 0 f = f x : xs
+--alterTape (x:xs) i f = x : alterTape xs (i-1) f
+alterTape tape i f = S.adjust f i tape
 
 findParen :: String -> Int -> [Int] -> [(Int,Int)] -> [(Int,Int)]
 findParen "" _ [] acc = acc
