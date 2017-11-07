@@ -1,8 +1,6 @@
 module Lib
     ( run
     , alterTape
-    , next
-    , prev
     , jumpForwardPos
     , jumpBackwardPos
     , tape
@@ -16,17 +14,24 @@ module Lib
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Word
 import qualified Data.Sequence as S
 
-next :: Char -> Char
-next '\255' = chr 0
-next c = chr (ord c + 1)
+--next :: Char -> Char
+--next '\255' = chr 0
+--next c = chr (ord c + 1)
+--
+--prev :: Char -> Char
+--prev '\0' = chr 255
+--prev c = chr (ord c -1 )
 
-prev :: Char -> Char
-prev '\0' = chr 255
-prev c = chr (ord c -1 )
+ascii :: Char -> Word8
+ascii = fromIntegral . ord
 
-type Tape = S.Seq Char
+toChar :: Word8 -> Char
+toChar = chr . fromIntegral
+
+type Tape = S.Seq Word8
 
 data Program = Program String Int Tape Int String String
 
@@ -49,7 +54,7 @@ code :: Program -> String
 code (Program c _ _ _ _ _) = c
 
 run :: String -> String
-run commentedCode = run' (Program code 0 (S.replicate 30000 '\0') 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
+run commentedCode = run' (Program code 0 (S.replicate 30000 0) 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
@@ -65,10 +70,10 @@ eval (Program code cPos tape tPos inp out) progLen parens = case (cPos >= progLe
 op :: Char -> Program -> [(Int,Int)] -> Program
 op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape (tPos+1) inp out)
 op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape (tPos-1) inp out)
-op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos next) tPos inp out)
-op '-' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos prev) tPos inp out)
-op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [valueOnTape tape tPos])) 
-op ',' (Program code cPos tape tPos (i:inp) out) parens = (Program code (cPos+1) (alterTape tape tPos (put i)) tPos inp out)
+op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos (+ 1)) tPos inp out)
+op '-' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos (subtract 1)) tPos inp out)
+op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [toChar $ valueOnTape tape tPos])) 
+op ',' (Program code cPos tape tPos (i:inp) out) parens = (Program code (cPos+1) (alterTape tape tPos (put $ ascii i)) tPos inp out)
 -- Jumps
 op '[' (Program code cPos tape tPos inp out) parens = (Program code newPos tape tPos inp out)
     where
@@ -79,22 +84,22 @@ op ']' (Program code cPos tape tPos inp out) parens = (Program code newPos tape 
 -- Ignore all else
 op _ (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp out) 
 
-jumpForwardPos :: [(Int,Int)] -> Char -> Int -> Int
+jumpForwardPos :: [(Int,Int)] -> Word8 -> Int -> Int
 jumpForwardPos parens tape pos =
-    if tape == '\0'
+    if tape == 0
            then (otherParen parens pos)+1
            else (pos+1)
 
-jumpBackwardPos :: [(Int,Int)] -> Char -> Int -> Int
+jumpBackwardPos :: [(Int,Int)] -> Word8 -> Int -> Int
 jumpBackwardPos parens tape pos =
-    if tape /= '\0'
+    if tape /= 0
            then (otherParen parens pos)+1
            else (pos+1)
 
 --valueOnTape :: Tape -> Int -> Char
 valueOnTape = S.index
 
-put :: Char -> Char -> Char
+put :: Word8 -> Word8 -> Word8
 put x _ = x
 
 --alterTape :: String -> Int -> (Char -> Char) -> String
