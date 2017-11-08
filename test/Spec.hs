@@ -32,12 +32,12 @@ testJumpPos = TestCase (do
     )
 testEval = TestCase (do
     let one = "+."
-    let prog = (Program one 0 (Z.fromList (replicate 10 '\0')) 0 "" S.empty)
-    let expected = (Program one 0 (Z.fromList "\SOH\0\0\0\0\0\0\0\0\0") 0 "" S.empty)
+    let prog = (Program one 0 (Z.fromList (replicate 10 '\0')) "" S.empty)
+    let expected = (Program one 0 (Z.fromList "\SOH\0\0\0\0\0\0\0\0\0") "" S.empty)
     assertEqual "one result" (tape expected) (tape (eval prog (length one) (parens one)))
     let jump = "[+]++"
-    let prog = (Program jump 0 (Z.fromList (replicate 10 '\0')) 0 "" S.empty)
-    let expected = (Program jump 0 (Z.fromList "\STX\0\0\0\0\0\0\0\0\0") 0 "" S.empty)
+    let prog = (Program jump 0 (Z.fromList (replicate 10 '\0')) "" S.empty)
+    let expected = (Program jump 0 (Z.fromList "\STX\0\0\0\0\0\0\0\0\0") "" S.empty)
     assertEqual "jump result" (tape expected) (tape (eval prog (length jump) (parens jump)))
     )
 tests = TestList [
