@@ -31,7 +31,7 @@ prev c = chr (ord c -1 )
 type Tape = Z.Zipper Char
 
 -- TODO Remove TapePosition
-data Program = Program String Int Tape Int String String
+data Program = Program Tape Int Tape Int String String
 
 -- TODO we can remove out
 instance Show Program where
@@ -49,10 +49,10 @@ tape :: Program -> String
 tape (Program _ _ t _ _ _) = show t
 
 code :: Program -> String
-code (Program c _ _ _ _ _) = c
+code (Program c _ _ _ _ _) = Z.toList c
 
 run :: String -> String
-run commentedCode = run' (Program code 0 (Z.fromList (replicate 30000 '\0')) 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
+run commentedCode = run' (Program (Z.fromList code) 0 (Z.fromList (replicate 30000 '\0')) 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
@@ -62,27 +62,34 @@ run' prog parens = show $ eval prog (length $ code prog) (parens)
 eval :: Program -> Int -> M.Map Int Int -> Program
 eval (Program code cPos tape tPos inp out) progLen parens = case (cPos >= progLen) of
     True -> Program code cPos tape tPos inp out
-    otherwise -> eval (op (code !! cPos) (Program code cPos tape tPos inp out) parens) progLen parens
+    otherwise -> eval (op (Z.cursor code) (Program code cPos tape tPos inp out) parens) progLen parens
 
 -- TODO remove cPos
+-- TODO remove tPos
 -- TODO output as Data.Sequence
 -- TODO Code as zipper list
 op :: Char -> Program -> M.Map Int Int -> Program
-op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.right tape) (tPos+1) inp out)
-op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.left tape) (tPos-1) inp out)
-op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos next) tPos inp out)
-op '-' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos prev) tPos inp out)
-op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [valueOnTape tape tPos])) 
-op ',' (Program code cPos tape tPos (i:inp) out) parens = (Program code (cPos+1) (alterTape tape tPos (put i)) tPos inp out)
+op '>' (Program code cPos tape tPos inp out) parens = (Program (Z.right code) (cPos+1) (Z.right tape) (tPos+1) inp out)
+op '<' (Program code cPos tape tPos inp out) parens = (Program (Z.right code) (cPos+1) (Z.left tape) (tPos-1) inp out)
+op '+' (Program code cPos tape tPos inp out) parens = (Program (Z.right code) (cPos+1) (alterTape tape tPos next) tPos inp out)
+op '-' (Program code cPos tape tPos inp out) parens = (Program (Z.right code) (cPos+1) (alterTape tape tPos prev) tPos inp out)
+op '.' (Program code cPos tape tPos inp out) parens = (Program (Z.right code) (cPos+1) tape tPos inp (out ++ [valueOnTape tape tPos])) 
+op ',' (Program code cPos tape tPos (i:inp) out) parens = (Program (Z.right code) (cPos+1) (alterTape tape tPos (put i)) tPos inp out)
 -- Jumps
-op '[' (Program code cPos tape tPos inp out) parens = (Program code newPos tape tPos inp out)
+op '[' (Program code cPos tape tPos inp out) parens = (Program newCode newPos tape tPos inp out)
     where
         newPos = jumpForwardPos parens (valueOnTape tape tPos) cPos
-op ']' (Program code cPos tape tPos inp out) parens = (Program code newPos tape tPos inp out) 
+        newCode = jump (Z.start code) newPos
+op ']' (Program code cPos tape tPos inp out) parens = (Program newCode newPos tape tPos inp out) 
     where
         newPos = jumpBackwardPos parens (valueOnTape tape tPos) cPos
+        newCode = jump (Z.start code) newPos
 -- Ignore all else
-op _ (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp out) 
+op _ (Program code cPos tape tPos inp out) parens = (Program (Z.right code) (cPos+1) tape tPos inp out) 
+
+jump :: Z.Zipper a -> Int -> Z.Zipper a
+jump z 0 = z
+jump z n = jump (Z.right z) (n-1)
 
 jumpForwardPos :: M.Map Int Int -> Char -> Int -> Int
 jumpForwardPos parens tape pos =
