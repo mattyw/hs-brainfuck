@@ -19,6 +19,8 @@ import Data.List
 import Data.Maybe
 import qualified Data.List.Zipper as Z
 import qualified Data.Map.Strict as M
+import qualified Data.Sequence as S
+import qualified Data.Foldable as F (toList)
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -29,13 +31,14 @@ prev '\0' = chr 255
 prev c = chr (ord c -1 )
 
 type Tape = Z.Zipper Char
+type Output = S.Seq Char
 
 -- TODO Remove TapePosition
-data Program = Program String Int Tape Int String String
+data Program = Program String Int Tape Int String Output
 
 -- TODO we can remove out
 instance Show Program where
-    show (Program _ _ _ _ _ out) = out
+    show (Program _ _ _ _ _ out) = F.toList out
 
 instance Eq Program where
     (==) (Program a1 a2 a3 a4 a5 a6)
@@ -52,7 +55,7 @@ code :: Program -> String
 code (Program c _ _ _ _ _) = c
 
 run :: String -> String
-run commentedCode = run' (Program code 0 (Z.fromList (replicate 30000 '\0')) 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
+run commentedCode = run' (Program code 0 (Z.fromList (replicate 30000 '\0')) 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" S.empty) (parens code)
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
@@ -72,7 +75,7 @@ op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.
 op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.left tape) (tPos-1) inp out)
 op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos next) tPos inp out)
 op '-' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos prev) tPos inp out)
-op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [valueOnTape tape tPos])) 
+op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out S.|> (valueOnTape tape tPos))) 
 op ',' (Program code cPos tape tPos (i:inp) out) parens = (Program code (cPos+1) (alterTape tape tPos (put i)) tPos inp out)
 -- Jumps
 op '[' (Program code cPos tape tPos inp out) parens = (Program code newPos tape tPos inp out)
