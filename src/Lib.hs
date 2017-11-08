@@ -76,12 +76,8 @@ op '-' (Program code cPos tape inp out) parens = (Program code (cPos+1) (alterTa
 op '.' (Program code cPos tape inp out) parens = (Program code (cPos+1) tape inp (out S.|> (valueOnTape tape))) 
 op ',' (Program code cPos tape (i:inp) out) parens = (Program code (cPos+1) (alterTape tape (put i)) inp out)
 -- Jumps
-op '[' (Program code cPos tape inp out) parens = (Program code newPos tape inp out)
-    where
-        newPos = jumpForwardPos parens (valueOnTape tape) cPos
-op ']' (Program code cPos tape inp out) parens = (Program code newPos tape inp out) 
-    where
-        newPos = jumpBackwardPos parens (valueOnTape tape) cPos
+op '[' (Program code cPos tape inp out) parens = (Program code (jumpForwardPos parens (valueOnTape tape) cPos) tape inp out)
+op ']' (Program code cPos tape inp out) parens = (Program code (jumpBackwardPos parens (valueOnTape tape) cPos) tape inp out) 
 -- Ignore all else
 op _ (Program code cPos tape inp out) parens = (Program code (cPos+1) tape inp out) 
 
