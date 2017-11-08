@@ -16,7 +16,7 @@ module Lib
 import Data.Char
 import Data.List
 import Data.Maybe
-import qualified Data.Sequence as S
+import qualified Data.List.Zipper as Z
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -26,8 +26,9 @@ prev :: Char -> Char
 prev '\0' = chr 255
 prev c = chr (ord c -1 )
 
-type Tape = S.Seq Char
+type Tape = Z.Zipper Char
 
+-- TODO Remove TapePosition
 data Program = Program String Int Tape Int String String
 
 -- TODO we can remove out
@@ -49,7 +50,7 @@ code :: Program -> String
 code (Program c _ _ _ _ _) = c
 
 run :: String -> String
-run commentedCode = run' (Program code 0 (S.replicate 30000 '\0') 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
+run commentedCode = run' (Program code 0 (Z.fromList (replicate 30000 '\0')) 0 "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" "") (parens code)
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
@@ -63,8 +64,8 @@ eval (Program code cPos tape tPos inp out) progLen parens = case (cPos >= progLe
 
 -- TODO remove cPos
 op :: Char -> Program -> [(Int,Int)] -> Program
-op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape (tPos+1) inp out)
-op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape (tPos-1) inp out)
+op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.right tape) (tPos+1) inp out)
+op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.left tape) (tPos-1) inp out)
 op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos next) tPos inp out)
 op '-' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos prev) tPos inp out)
 op '.' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp (out ++ [valueOnTape tape tPos])) 
@@ -91,17 +92,12 @@ jumpBackwardPos parens tape pos =
            then (otherParen parens pos)+1
            else (pos+1)
 
---valueOnTape :: Tape -> Int -> Char
-valueOnTape = S.index
+valueOnTape tape pos = Z.cursor tape
 
 put :: Char -> Char -> Char
 put x _ = x
 
---alterTape :: String -> Int -> (Char -> Char) -> String
---alterTape "" _ _ = ""
---alterTape (x:xs) 0 f = f x : xs
---alterTape (x:xs) i f = x : alterTape xs (i-1) f
-alterTape tape i f = S.adjust f i tape
+alterTape tape i f = Z.replace (f $ Z.cursor tape) tape
 
 findParen :: String -> Int -> [Int] -> [(Int,Int)] -> [(Int,Int)]
 findParen "" _ [] acc = acc
@@ -111,7 +107,6 @@ findParen (']':xs) idx (h:stck) acc = findParen xs (idx+1) stck ((h, idx) : acc)
 findParen ('[':xs) idx stck acc = findParen xs (idx+1) (idx : stck) acc
 findParen (x:xs) idx stck acc = findParen xs (idx+1) stck acc
 
--- TODO the tape should be Ints or Bytes
 parens :: String -> [(Int,Int)]
 parens s = findParen s 0 [] []
 
