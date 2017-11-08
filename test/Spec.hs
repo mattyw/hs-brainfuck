@@ -4,11 +4,11 @@ import Lib
 import System.Exit
 import Control.Monad
 import qualified Data.List.Zipper as Z
+import qualified Data.Map.Strict as M
 
 testMatch = TestCase (do
     let out = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
-    let parens = [(8,48),(43, 45),(14, 33)]
-    assertEqual "Test match" parens (Lib.parens out)
+    let parens = Lib.parens out
     assertEqual "Find other" 48 (otherParen parens 8)
     assertEqual "Find other" 43 (otherParen parens 45)
     )

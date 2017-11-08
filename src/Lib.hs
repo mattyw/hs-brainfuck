@@ -3,6 +3,7 @@ module Lib
     , alterTape
     , next
     , prev
+    , insertKeys
     , jumpForwardPos
     , jumpBackwardPos
     , tape
@@ -17,6 +18,7 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import qualified Data.List.Zipper as Z
+import qualified Data.Map.Strict as M
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -54,16 +56,18 @@ run commentedCode = run' (Program code 0 (Z.fromList (replicate 30000 '\0')) 0 "
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
-run' :: Program -> [(Int,Int)] -> String
+run' :: Program -> M.Map Int Int -> String
 run' prog parens = show $ eval prog (length $ code prog) (parens)
 
-eval :: Program -> Int -> [(Int,Int)] -> Program
+eval :: Program -> Int -> M.Map Int Int -> Program
 eval (Program code cPos tape tPos inp out) progLen parens = case (cPos >= progLen) of
     True -> Program code cPos tape tPos inp out
     otherwise -> eval (op (code !! cPos) (Program code cPos tape tPos inp out) parens) progLen parens
 
 -- TODO remove cPos
-op :: Char -> Program -> [(Int,Int)] -> Program
+-- TODO output as Data.Sequence
+-- TODO Code as zipper list
+op :: Char -> Program -> M.Map Int Int -> Program
 op '>' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.right tape) (tPos+1) inp out)
 op '<' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (Z.left tape) (tPos-1) inp out)
 op '+' (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) (alterTape tape tPos next) tPos inp out)
@@ -80,13 +84,13 @@ op ']' (Program code cPos tape tPos inp out) parens = (Program code newPos tape 
 -- Ignore all else
 op _ (Program code cPos tape tPos inp out) parens = (Program code (cPos+1) tape tPos inp out) 
 
-jumpForwardPos :: [(Int,Int)] -> Char -> Int -> Int
+jumpForwardPos :: M.Map Int Int -> Char -> Int -> Int
 jumpForwardPos parens tape pos =
     if tape == '\0'
            then (otherParen parens pos)+1
            else (pos+1)
 
-jumpBackwardPos :: [(Int,Int)] -> Char -> Int -> Int
+jumpBackwardPos :: M.Map Int Int -> Char -> Int -> Int
 jumpBackwardPos parens tape pos =
     if tape /= '\0'
            then (otherParen parens pos)+1
@@ -99,20 +103,19 @@ put x _ = x
 
 alterTape tape i f = Z.replace (f $ Z.cursor tape) tape
 
-findParen :: String -> Int -> [Int] -> [(Int,Int)] -> [(Int,Int)]
+findParen :: String -> Int -> [Int] -> M.Map Int Int -> M.Map Int Int
 findParen "" _ [] acc = acc
 findParen "" _ (x:xs) acc = error "found open without close"
 findParen (']':xs) _ [] _ = error "found close without open"
-findParen (']':xs) idx (h:stck) acc = findParen xs (idx+1) stck ((h, idx) : acc)
+findParen (']':xs) idx (h:stck) acc = findParen xs (idx+1) stck (insertKeys h idx acc)
 findParen ('[':xs) idx stck acc = findParen xs (idx+1) (idx : stck) acc
 findParen (x:xs) idx stck acc = findParen xs (idx+1) stck acc
 
-parens :: String -> [(Int,Int)]
-parens s = findParen s 0 [] []
+insertKeys :: Int -> Int -> M.Map Int Int -> M.Map Int Int
+insertKeys key value m = M.insert value key $ M.insert key value m
 
-otherParen :: [(Int, Int)] -> Int -> Int
-otherParen [] _ = error "no parens"
-otherParen ((a,b):xs) n
-    | a == n = b
-    | b == n = a
-    | otherwise = otherParen xs n
+parens :: String -> M.Map Int Int
+parens s = findParen s 0 [] M.empty
+
+otherParen :: M.Map Int Int -> Int -> Int
+otherParen = (M.!)
