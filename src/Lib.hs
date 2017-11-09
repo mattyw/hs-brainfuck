@@ -2,12 +2,12 @@ module Lib
     ( run
     , alterTape
     , next
+    , test
     , prev
     , insertKeys
     , jumpForwardPos
     , jumpBackwardPos
     , tape
-    , put
     , parens
     , otherParen
     , Program (Program)
@@ -21,6 +21,7 @@ import qualified Data.List.Zipper as Z
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F (toList)
+import Control.Monad.State
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -66,6 +67,22 @@ eval (Program code cPos tape inp out) progLen parens = case (cPos >= progLen) of
     True -> Program code cPos tape inp out
     otherwise -> eval (op (code !! cPos) (Program code cPos tape inp out) parens) progLen parens
 
+evalM :: Int -> Int -> M.Map Int Int -> State Program String
+evalM cPos progLen parens =
+    case (cPos >= progLen) of
+        True -> do
+            prog <- get
+            return $ tape prog
+        otherwise -> do
+            (Program code cPos tape inp out) <- get
+            put (op (code !! cPos) (Program code cPos tape inp out) parens)
+            evalM cPos progLen parens
+
+--need to try to get this test function working - are things faster using the state monad?
+--helloWorld = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+helloWorld = ">+"
+test = print $ evalState (evalM 0 (length helloWorld) (parens helloWorld)) (Program helloWorld 0 (Z.fromList (replicate 30000 '\0')) "" S.empty)
+
 -- TODO remove cPos
 -- TODO Code as zipper list
 op :: Char -> Program -> M.Map Int Int -> Program
@@ -74,7 +91,7 @@ op '<' (Program code cPos tape inp out) parens = (Program code (cPos+1) (Z.left 
 op '+' (Program code cPos tape inp out) parens = (Program code (cPos+1) (alterTape tape next) inp out)
 op '-' (Program code cPos tape inp out) parens = (Program code (cPos+1) (alterTape tape prev) inp out)
 op '.' (Program code cPos tape inp out) parens = (Program code (cPos+1) tape inp (out S.|> (valueOnTape tape))) 
-op ',' (Program code cPos tape (i:inp) out) parens = (Program code (cPos+1) (alterTape tape (put i)) inp out)
+op ',' (Program code cPos tape (i:inp) out) parens = (Program code (cPos+1) (alterTape tape (\_ -> i)) inp out)
 -- Jumps
 op '[' (Program code cPos tape inp out) parens = (Program code (jumpForwardPos parens (valueOnTape tape) cPos) tape inp out)
 op ']' (Program code cPos tape inp out) parens = (Program code (jumpBackwardPos parens (valueOnTape tape) cPos) tape inp out) 
@@ -95,8 +112,8 @@ jumpBackwardPos parens tape pos =
 
 valueOnTape tape = Z.cursor tape
 
-put :: Char -> Char -> Char
-put x _ = x
+--put :: Char -> Char -> Char
+--put x _ = x
 
 alterTape tape f = Z.replace (f $ Z.cursor tape) tape
 
