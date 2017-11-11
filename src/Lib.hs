@@ -32,7 +32,6 @@ prev c = chr (ord c -1 )
 type Tape = Z.Zipper Char
 type Output = S.Seq Char
 
--- TODO Remove TapePosition
 data Program = Program Int Tape String Output
 
 -- TODO we can remove out
@@ -45,6 +44,8 @@ instance Eq Program where
                                           a2 == b2 &&
                                           a3 == b3 &&
                                           a4 == b4
+
+-- TODO Use a record so I don't have to write this myself
 tape :: Program -> String
 tape (Program _ t _ _) = show t
 
@@ -88,7 +89,7 @@ jumpBackwardPos parens tape pos =
            then (otherParen parens pos)+1
            else (pos+1)
 
-valueOnTape tape = Z.cursor tape
+valueOnTape = Z.cursor
 
 alterTape tape f = Z.replace (f $ Z.cursor tape) tape
 
