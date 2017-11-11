@@ -7,4 +7,5 @@ main :: IO ()
 main = do
     args <- getArgs
     prog <- readFile $ head args
-    putStrLn $ Lib.run prog
+    --putStrLn $ Lib.run prog
+    Lib.runM prog

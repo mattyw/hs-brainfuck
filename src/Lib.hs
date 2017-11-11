@@ -2,7 +2,7 @@ module Lib
     ( run
     , alterTape
     , next
-    , test
+    , runM
     , prev
     , insertKeys
     , jumpForwardPos
@@ -22,6 +22,7 @@ import qualified Data.Map.Strict as M
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F (toList)
 import Control.Monad.State
+import Debug.Trace (traceShow)
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -54,6 +55,9 @@ tape (Program _ _ t _ _) = show t
 code :: Program -> String
 code (Program c _ _ _ _) = c
 
+cpos :: Program -> Int
+cpos (Program _ p _ _ _) = p
+
 run :: String -> String
 run commentedCode = run' (Program code 0 (Z.fromList (replicate 30000 '\0')) "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" S.empty) (parens code)
     where
@@ -69,19 +73,21 @@ eval (Program code cPos tape inp out) progLen parens = case (cPos >= progLen) of
 
 evalM :: Int -> Int -> M.Map Int Int -> State Program String
 evalM cPos progLen parens =
-    case (cPos >= progLen) of
+    case (cPos >= (progLen-1)) of
         True -> do
             prog <- get
-            return $ tape prog
+            return $ show prog
         otherwise -> do
             (Program code cPos tape inp out) <- get
-            put (op (code !! cPos) (Program code cPos tape inp out) parens)
-            evalM cPos progLen parens
+            let newProg = op (code !! cPos) (Program code cPos tape inp out) parens
+            --put $ traceShow [(progLen-1), cpos newProg]  newProg
+            put newProg
+            evalM (cpos newProg) progLen parens
 
---need to try to get this test function working - are things faster using the state monad?
---helloWorld = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
-helloWorld = ">+"
-test = print $ evalState (evalM 0 (length helloWorld) (parens helloWorld)) (Program helloWorld 0 (Z.fromList (replicate 30000 '\0')) "" S.empty)
+runM :: String -> IO ()
+runM commentedCode = print $ evalState (evalM 0 (length code) (parens code)) (Program code 0 (Z.fromList (replicate 30000 '\0')) "" S.empty)
+    where
+        code = filter (`elem` "><+-,.[]") commentedCode
 
 -- TODO remove cPos
 -- TODO Code as zipper list
