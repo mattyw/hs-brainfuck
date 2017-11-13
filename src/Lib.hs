@@ -16,6 +16,8 @@ module Lib
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.STRef
+import Control.Monad.ST
 import qualified Data.List.Zipper as Z
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as S
@@ -33,6 +35,9 @@ type Tape = Z.Zipper Char
 type Output = S.Seq Char
 
 data Program = Program Int Tape String Output
+
+cPos :: Program -> Int
+cPos (Program p _ _ _) = p
 
 -- TODO we can remove out
 instance Show Program where
@@ -58,9 +63,20 @@ run' :: Program -> String -> M.Map Int Int -> String
 run' prog code parens = show $ eval prog code (length code) (parens)
 
 eval :: Program -> String -> Int -> M.Map Int Int -> Program
-eval (Program cPos tape inp out) code progLen parens = case (cPos >= progLen) of
-    True -> Program cPos tape inp out
-    otherwise -> eval (op (code !! cPos) (Program cPos tape inp out) parens) code progLen parens
+eval program code progLen parens = runST $ do
+    c <- newSTRef code
+    par <- newSTRef parens
+    prog <- newSTRef program
+    eval' prog c par
+    where eval' prog c par = do
+            c' <- readSTRef c
+            p' <- readSTRef par
+            prog' <- readSTRef prog
+            case (cPos prog' >= progLen) of
+                True -> readSTRef prog
+                otherwise -> do
+                    writeSTRef prog (op (c' !! cPos prog') prog' p')
+                    eval' prog c par
 
 -- TODO remove cPos
 -- TODO Code as zipper list
