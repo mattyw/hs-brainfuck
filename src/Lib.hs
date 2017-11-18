@@ -7,6 +7,7 @@ module Lib
     , jumpForwardPos
     , jumpBackwardPos
     , tape
+    , code
     , parens
     , otherParen
     , Program (Program)
@@ -16,10 +17,15 @@ module Lib
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Word (Word8)
 import qualified Data.List.Zipper as Z
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F (toList)
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C
+
+import Debug.Trace
 
 next :: Char -> Char
 next '\255' = chr 0
@@ -31,6 +37,11 @@ prev c = chr (ord c -1 )
 
 type Tape = Z.Zipper Char
 type Output = S.Seq Char
+
+type Code = B.ByteString
+
+code :: String -> Code
+code = C.pack
 
 data Program = Program Int Tape String Output
 
@@ -50,17 +61,20 @@ tape :: Program -> String
 tape (Program _ t _ _) = show t
 
 run :: String -> String
-run commentedCode = run' (Program 0 (Z.fromList (replicate 30000 '\0')) "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" S.empty) code (parens code)
+run commentedCode = run' (Program 0 (Z.fromList (replicate 30000 '\0')) "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" S.empty) (C.pack code) (parens code)
     where
         code = filter (`elem` "><+-,.[]") commentedCode
 
-run' :: Program -> String -> M.Map Int Int -> String
-run' prog code parens = show $ eval prog code (length code) (parens)
+run' :: Program -> Code -> M.Map Int Int -> String
+run' prog code parens = show $ eval prog code (B.length code) (parens)
 
-eval :: Program -> String -> Int -> M.Map Int Int -> Program
+eval :: Program -> Code -> Int -> M.Map Int Int -> Program
 eval (Program cPos tape inp out) code progLen parens = case (cPos >= progLen) of
     True -> Program cPos tape inp out
-    otherwise -> eval (op (code !! cPos) (Program cPos tape inp out) parens) code progLen parens
+    otherwise -> eval (op ({-# SCC "bang" #-} conv $ B.index code cPos) (Program cPos tape inp out) parens) code progLen parens
+
+conv :: Word8 -> Char
+conv = chr . fromIntegral
 
 -- TODO remove cPos
 -- TODO Code as zipper list
